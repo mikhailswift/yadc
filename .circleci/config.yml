@@ -2,16 +2,22 @@ version: 2
 
 jobs:
   build:
+    docker:
+      - image: scoodah/yadc:build
     steps:
       run:
         - name: Build
         - command: make build
   test:
+    docker:
+      - image: scoodah/yadc:build
     steps:
       run:
         - name: Test
         - command: make test
   code_quality:
+    docker:
+      - image: scoodah/yadc:build
     steps:
       run:
         - name: Code Quality Checks
