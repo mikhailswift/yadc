@@ -15,4 +15,8 @@ RUN mkdir -p $GOPATH $GOBIN
 ADD https://dl.google.com/go/go${GO_VER}.linux-amd64.tar.gz go.tar.gz
 RUN tar -C /usr/local -xzf go.tar.gz && rm go.tar.gz
 
-RUN yum -y make
+RUN yum -y \
+    make \
+    git
+
+RUN go get -u github.com/golang/lint/golint
