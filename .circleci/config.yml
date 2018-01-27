@@ -2,6 +2,28 @@ version: 2
 
 jobs:
   build:
-    machine: true
-    steps: 
-      - run: echo "Init circle ci"
+    steps:
+      run:
+        - name: Build
+        - command: make build
+  test:
+    steps:
+      run:
+        - name: Test
+        - command: make test
+  code_quality:
+    steps:
+      run:
+        - name: Code Quality Checks
+        - command: |
+          make fmt
+          make vet
+          make lint
+
+  workflows:
+    version: 2
+    yacd:
+      jobs:
+        - build
+        - test
+        - code_quality
