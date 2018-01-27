@@ -16,9 +16,9 @@ jobs:
       run:
         - name: Code Quality Checks
         - command: |
-          make fmt
-          make vet
-          make lint
+            make fmt
+            make vet
+            make lint
 
   workflows:
     version: 2
