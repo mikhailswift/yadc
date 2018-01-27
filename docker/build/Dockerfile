@@ -3,7 +3,7 @@ MAINTAINER Mikhail Swift <mikhail.swift@gmail.com>
 
 WORKDIR /tmp/
 
-ARG GO_VER=1.9.2
+ARG GO_VER=1.9.3
 
 ENV PATH=/usr/local/go/bin/:$PATH
 ENV GOPATH=/go
