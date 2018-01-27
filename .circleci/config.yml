@@ -5,23 +5,23 @@ jobs:
     docker:
       - image: scoodah/yadc:build
     steps:
-      run:
-        - name: Build
-        - command: make build
+      - run:
+          name: Build
+          command: make build
   test:
     docker:
       - image: scoodah/yadc:build
     steps:
-      run:
-        - name: Test
-        - command: make test
+      - run:
+          name: Test
+          command: make test
   code_quality:
     docker:
       - image: scoodah/yadc:build
     steps:
-      run:
-        - name: Code Quality Checks
-        - command: |
+      - run:
+          name: Code Quality Checks
+          command: |
             make fmt
             make vet
             make lint
