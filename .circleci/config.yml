@@ -26,10 +26,10 @@ jobs:
             make vet
             make lint
 
-  workflows:
-    version: 2
-    yacd:
-      jobs:
-        - build
-        - test
-        - code_quality
+workflows:
+  version: 2
+  yacd:
+    jobs:
+      - build
+      - test
+      - code_quality
