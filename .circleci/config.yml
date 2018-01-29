@@ -2,6 +2,37 @@ version: 2
 
 jobs:
   build:
-    machine: true
-    steps: 
-      - run: echo "Init circle ci"
+    docker:
+      - image: scoodah/yadc:build
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: make build
+  test:
+    docker:
+      - image: scoodah/yadc:build
+    steps:
+      - checkout
+      - run:
+          name: Test
+          command: make test
+  code_quality:
+    docker:
+      - image: scoodah/yadc:build
+    steps:
+      - checkout
+      - run:
+          name: Code Quality Checks
+          command: |
+            make fmt
+            make vet
+            make lint
+
+workflows:
+  version: 2
+  yacd:
+    jobs:
+      - build
+      - test
+      - code_quality
