@@ -23,6 +23,12 @@ type mapHashTable struct {
 	sync.RWMutex
 }
 
+func newTable() HashTable {
+	return &mapHashTable{
+		m: make(map[string]*node),
+	}
+}
+
 func (t *mapHashTable) Set(key, value string) result {
 	t.Lock()
 	defer t.Unlock()
@@ -42,5 +48,40 @@ func (t *mapHashTable) Set(key, value string) result {
 	return result{
 		Node:   *n,
 		Action: Created,
+	}
+}
+
+func (t *mapHashTable) Unset(key string) result {
+	t.Lock()
+	defer t.Unlock()
+	n, exists := t.m[key]
+	if !exists {
+		return result{
+			Action: Failed,
+			Err:    ErrKeyNotFound(key),
+		}
+	}
+
+	return result{
+		Action: Deleted,
+		Node:   *n,
+	}
+}
+
+func (t *mapHashTable) Get(key string) result {
+	t.Lock()
+	defer t.Unlock()
+
+	n, exists := t.m[key]
+	if !exists {
+		return result{
+			Action: Failed,
+			Err:    ErrKeyNotFound(key),
+		}
+	}
+
+	return result{
+		Action: Retrieved,
+		Node:   *n,
 	}
 }

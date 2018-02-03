@@ -7,10 +7,20 @@ import (
 	"time"
 )
 
+const (
+	NoTtl = time.Duration(0)
+)
+
 type ErrInvalidTtl time.Duration
 
 func (e ErrInvalidTtl) Error() string {
 	return fmt.Sprintf("Couldn't use %s as a ttl", e)
+}
+
+type ErrTtlNotFound string
+
+func (e ErrTtlNotFound) Error() string {
+	return fmt.Sprintf("Couldn't find a ttl for key %v", e)
 }
 
 type ttlInfo struct {
@@ -27,7 +37,7 @@ type ttlRegistry struct {
 	sync.RWMutex
 }
 
-func NewRegistry(table HashTable) *ttlRegistry {
+func newTtlRegistry(table HashTable) *ttlRegistry {
 	reg := &ttlRegistry{
 		ttlByKey: make(map[string]*ttlInfo),
 		queue:    make(ttlQueue, 0),
@@ -39,10 +49,6 @@ func NewRegistry(table HashTable) *ttlRegistry {
 }
 
 func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Duration) error {
-	if ttl <= 0 {
-		return ErrInvalidTtl(ttl)
-	}
-
 	reg.Lock()
 	defer reg.Unlock()
 
@@ -50,19 +56,34 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 	var exists bool
 
 	if ti, exists = reg.ttlByKey[key]; !exists {
+		if ttl <= 0 {
+			return ErrInvalidTtl(ttl)
+		}
+
 		ti = &ttlInfo{
 			key:    key,
 			expire: created.Add(ttl).UTC(),
 		}
+	} else if !exists && ttl <= 0 {
+		// a value of zero or below will erase the ttl
+		ti.expire = time.Time{}
 	}
 
 	// peek the next ttl, if it's after the one we're adding reset the timer to our newly added ttl
-	if reg.queue.Len() > 0 {
+	for reg.queue.Len() > 0 {
 		next := reg.queue[0]
+		// pop any ttls that are no longer valid
+		if next.expire.IsZero() {
+			reg.queue.Pop()
+			continue
+		}
+
 		if next.expire.After(ti.expire) {
 			reg.nextTtlExpire.Stop()
 			reg.nextTtlExpire = time.AfterFunc(ti.expire.Sub(time.Now().UTC()), reg.expireKeys)
 		}
+
+		break
 	}
 
 	if !exists {
@@ -75,6 +96,30 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 	return nil
 }
 
+func (reg *ttlRegistry) GetTtl(key string) (time.Duration, error) {
+	reg.RLock()
+	defer reg.RUnlock()
+	ti, ok := reg.ttlByKey[key]
+	if !ok {
+		return time.Duration(0), ErrTtlNotFound(key)
+	}
+
+	return ti.expire.Sub(time.Now().UTC()), nil
+}
+
+func (reg *ttlRegistry) UnregisterTtl(key string) error {
+	reg.Lock()
+	defer reg.Unlock()
+
+	ti, exists := reg.ttlByKey[key]
+	if !exists {
+		return ErrKeyNotFound(key)
+	}
+
+	ti.expire = time.Time{}
+	return nil
+}
+
 func (reg *ttlRegistry) expireKeys() {
 	reg.Lock()
 	defer reg.Unlock()
@@ -83,6 +128,13 @@ func (reg *ttlRegistry) expireKeys() {
 	for reg.queue.Len() > 0 {
 		// peek the next to make sure we should expire
 		next := reg.queue[0]
+
+		// disregard ttls with zero time
+		if next.expire.IsZero() {
+			reg.queue.Pop()
+			continue
+		}
+
 		if next.expire.After(now) {
 			reg.nextTtlExpire.Stop()
 			reg.nextTtlExpire = time.AfterFunc(next.expire.Sub(now), reg.expireKeys)
