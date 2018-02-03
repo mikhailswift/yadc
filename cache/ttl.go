@@ -16,6 +16,7 @@ func (e ErrInvalidTtl) Error() string {
 type ttlInfo struct {
 	key    string
 	expire time.Time
+	ix     int
 }
 
 type ttlRegistry struct {
@@ -42,25 +43,35 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 		return ErrInvalidTtl(ttl)
 	}
 
-	new := &ttlInfo{
-		key:    key,
-		expire: created.Add(ttl).UTC(),
-	}
-
 	reg.Lock()
 	defer reg.Unlock()
+
+	var ti *ttlInfo
+	var exists bool
+
+	if ti, exists = reg.ttlByKey[key]; !exists {
+		ti = &ttlInfo{
+			key:    key,
+			expire: created.Add(ttl).UTC(),
+		}
+	}
 
 	// peek the next ttl, if it's after the one we're adding reset the timer to our newly added ttl
 	if reg.queue.Len() > 0 {
 		next := reg.queue[0]
-		if next.expire.After(new.expire) {
+		if next.expire.After(ti.expire) {
 			reg.nextTtlExpire.Stop()
-			reg.nextTtlExpire = time.AfterFunc(new.expire.Sub(time.Now().UTC()), reg.expireKeys)
+			reg.nextTtlExpire = time.AfterFunc(ti.expire.Sub(time.Now().UTC()), reg.expireKeys)
 		}
 	}
 
-	heap.Push(&reg.queue, new)
-	reg.ttlByKey[key] = new
+	if !exists {
+		heap.Push(&reg.queue, ti)
+		reg.ttlByKey[key] = ti
+	} else {
+		heap.Fix(&reg.queue, ti.ix)
+	}
+
 	return nil
 }
 
@@ -79,6 +90,7 @@ func (reg *ttlRegistry) expireKeys() {
 		}
 
 		reg.queue.Pop()
+		delete(reg.ttlByKey, next.key)
 	}
 }
 
@@ -93,16 +105,21 @@ func (q ttlQueue) Less(i, j int) bool {
 
 func (q ttlQueue) Swap(i, j int) {
 	q[i], q[j] = q[j], q[i]
+	q[i].ix = i
+	q[j].ix = j
 }
 
 func (q *ttlQueue) Push(x interface{}) {
-	*q = append(*q, x.(*ttlInfo))
+	ti := x.(*ttlInfo)
+	ti.ix = len(*q)
+	*q = append(*q, ti)
 }
 
 func (q *ttlQueue) Pop() interface{} {
 	old := *q
 	n := len(old)
 	next := old[n-1]
-	*q = old[0 : n-1]
+	*q = old[:n-1]
+	next.ix = -1
 	return next
 }
