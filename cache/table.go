@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -9,6 +10,12 @@ type HashTable interface {
 	Set(key, value string) result
 	Unset(key string) result
 	Get(key string) result
+}
+
+type ErrKeyNotFound string
+
+func (e ErrKeyNotFound) Error() string {
+	return fmt.Sprintf("Could not find key: %+v", e)
 }
 
 type mapHashTable struct {
