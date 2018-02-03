@@ -5,20 +5,12 @@ import (
 	"testing"
 )
 
-var (
-	table HashTable
-)
-
-func TestMain(t *testing.T) {
-	table = newTable()
-}
-
 func TestSetKey(t *testing.T) {
 	testKey := "Test"
 	expectVal := "Value"
+	table := newTable()
 
 	r := table.Set(testKey, expectVal)
-	defer table.Unset(testKey)
 	if r.Err != nil {
 		t.Fatalf("Failed to set key to table: %+v", r.Err)
 	}
@@ -27,6 +19,7 @@ func TestSetKey(t *testing.T) {
 func TestGetKey(t *testing.T) {
 	testKey := "Test"
 	expectedVal := "Value 123"
+	table := newTable()
 
 	r := table.Set(testKey, expectedVal)
 	if r.Err != nil {
@@ -41,11 +34,18 @@ func TestGetKey(t *testing.T) {
 	if r.Node.value != expectedVal {
 		t.Fatalf("Got unexpected value back from table for key %v: got %v, expected %v", r.Node.value, expectedVal)
 	}
+
+	failKey := "Test 2"
+	r = table.Get(failKey)
+	if _, ok := r.Err.(ErrKeyNotFound); !ok {
+		t.Fatalf("Got unexpected error when trying to get key that doesn't exist: %+v", r.Err)
+	}
 }
 
 func TestUnsetKey(t *testing.T) {
 	testKey := "Test"
 	testVal := "Val"
+	table := newTable()
 
 	r := table.Set(testKey, testVal)
 	if r.Err != nil {
@@ -64,7 +64,9 @@ func TestUnsetKey(t *testing.T) {
 }
 
 func BenchmarkSet(b *testing.B) {
+	table := newTable()
 	fmt.Println("benching")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		v := fmt.Sprintf("%v", i)
 		r := table.Set(v, v)

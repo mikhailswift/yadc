@@ -3,6 +3,7 @@ package cache
 import (
 	"container/heap"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -70,12 +71,14 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 		next := reg.queue[0]
 		// pop any ttls that are no longer valid
 		if next.expire.IsZero() {
-			reg.queue.Pop()
+			heap.Pop(&reg.queue)
 			continue
 		}
 
 		if next.expire.After(ti.expire) {
-			reg.nextTtlExpire.Stop()
+			if reg.nextTtlExpire != nil {
+				reg.nextTtlExpire.Stop()
+			}
 			reg.nextTtlExpire = time.AfterFunc(ti.expire.Sub(time.Now().UTC()), reg.expireKeys)
 		}
 
@@ -127,17 +130,24 @@ func (reg *ttlRegistry) expireKeys() {
 
 		// disregard ttls with zero time
 		if next.expire.IsZero() {
-			reg.queue.Pop()
+			heap.Pop(&reg.queue)
 			continue
 		}
 
 		if next.expire.After(now) {
-			reg.nextTtlExpire.Stop()
+			if reg.nextTtlExpire != nil {
+				reg.nextTtlExpire.Stop()
+			}
 			reg.nextTtlExpire = time.AfterFunc(next.expire.Sub(now), reg.expireKeys)
 			return
 		}
 
-		reg.queue.Pop()
+		r := reg.table.Unset(next.key)
+		if _, ok := r.Err.(ErrKeyNotFound); r.Err != nil && !ok {
+			log.Printf("Couldn't unset key while expiring key %v: %+v", r.Err)
+		}
+
+		heap.Pop(&reg.queue)
 		delete(reg.ttlByKey, next.key)
 	}
 }
