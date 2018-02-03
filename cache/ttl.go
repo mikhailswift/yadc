@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-const (
-	NoTtl = time.Duration(0)
-)
-
 type ErrInvalidTtl time.Duration
 
 func (e ErrInvalidTtl) Error() string {
@@ -64,7 +60,7 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 			key:    key,
 			expire: created.Add(ttl).UTC(),
 		}
-	} else if !exists && ttl <= 0 {
+	} else if exists && ttl <= 0 {
 		// a value of zero or below will erase the ttl
 		ti.expire = time.Time{}
 	}
