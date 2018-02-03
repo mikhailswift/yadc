@@ -62,6 +62,7 @@ func (t *mapHashTable) Unset(key string) result {
 		}
 	}
 
+	delete(t.m, key)
 	return result{
 		Action: Deleted,
 		Node:   *n,
