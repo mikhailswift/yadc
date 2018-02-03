@@ -15,16 +15,17 @@ func TestTtlRegistrationAndHeapTest(t *testing.T) {
 	testCases := []struct {
 		Key string
 		Ttl time.Duration
-	}{{
-		Key: "Test",
-		Ttl: 5 * time.Second,
-	}, {
-		Key: "Test2",
-		Ttl: 6 * time.Second,
-	}, {
-		Key: "Test3",
-		Ttl: 4 * time.Second,
-	},
+	}{
+		{
+			Key: "Test",
+			Ttl: 5 * time.Second,
+		}, {
+			Key: "Test2",
+			Ttl: 6 * time.Second,
+		}, {
+			Key: "Test3",
+			Ttl: 4 * time.Second,
+		},
 	}
 
 	reg := getTestRegistry()
@@ -85,4 +86,91 @@ func TestTtlRegistrationAndHeapTest(t *testing.T) {
 	if popped.key != testCases[1].Key {
 		t.Fatalf("Got ttl info with key %v after popping but expected %v", popped.key, testCases[1].Key)
 	}
+}
+
+func TestExpiration(t *testing.T) {
+	testCases := []struct {
+		Key string
+		Ttl time.Duration
+	}{
+		{
+			Key: "Test",
+			Ttl: 2 * time.Second,
+		}, {
+			Key: "Test2",
+			Ttl: 3 * time.Second,
+		}, {
+			Key: "Test3",
+			Ttl: 1 * time.Second,
+		},
+	}
+
+	reg := getTestRegistry()
+	now := time.Now().UTC()
+
+	reg.table.Set(testCases[0].Key, "asdf")
+	reg.table.Set(testCases[1].Key, "asdf")
+	reg.table.Set(testCases[2].Key, "asdf")
+
+	if err := reg.RegisterTtl(testCases[0].Key, now, testCases[0].Ttl); err != nil {
+		t.Fatalf("Experienced error when registering ttl: %+v", err)
+	}
+
+	if err := reg.RegisterTtl(testCases[1].Key, now, testCases[1].Ttl); err != nil {
+		t.Fatalf("Experienced error when registering ttl: %+v", err)
+	}
+
+	if err := reg.RegisterTtl(testCases[1].Key, now, testCases[2].Ttl); err != nil {
+		t.Fatalf("Experienced error when registering ttl: %+v", err)
+	}
+
+	// wait for the first one to expire
+	time.Sleep(testCases[2].Ttl + 250*time.Millisecond)
+
+	ti, ok := reg.ttlByKey[testCases[2].Key]
+	if ok {
+		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
+	}
+
+	if reg.queue[0].key == testCases[2].Key {
+		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
+	}
+
+	r := reg.table.Get(testCases[2].Key)
+	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
+		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[2].Key, r)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	ti, ok = reg.ttlByKey[testCases[0].Key]
+	if ok {
+		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
+	}
+
+	if reg.queue[0].key == testCases[0].Key {
+		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
+	}
+
+	r = reg.table.Get(testCases[0].Key)
+	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
+		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[0].Key, r)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	ti, ok = reg.ttlByKey[testCases[1].Key]
+	if ok {
+		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
+	}
+
+	if reg.queue[0].key == testCases[1].Key {
+		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
+	}
+
+	r = reg.table.Get(testCases[1].Key)
+	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
+		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[1].Key, r)
+	}
+
 }
