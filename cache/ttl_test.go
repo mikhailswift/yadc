@@ -89,39 +89,34 @@ func TestTtlRegistrationAndHeapTest(t *testing.T) {
 }
 
 func TestExpiration(t *testing.T) {
-	testCases := []struct {
-		Key string
-		Ttl time.Duration
+	testCases := []*struct {
+		Key    string
+		Ttl    time.Duration
+		Expire time.Time
 	}{
 		{
 			Key: "Test",
-			Ttl: 2 * time.Second,
+			Ttl: 1 * time.Second,
 		}, {
 			Key: "Test2",
-			Ttl: 3 * time.Second,
+			Ttl: 2 * time.Second,
 		}, {
 			Key: "Test3",
-			Ttl: 1 * time.Second,
+			Ttl: 500 * time.Millisecond,
 		},
 	}
 
 	reg := getTestRegistry()
 	now := time.Now().UTC()
 
-	reg.table.Set(testCases[0].Key, "asdf")
-	reg.table.Set(testCases[1].Key, "asdf")
-	reg.table.Set(testCases[2].Key, "asdf")
-
-	if err := reg.RegisterTtl(testCases[0].Key, now, testCases[0].Ttl); err != nil {
-		t.Fatalf("Experienced error when registering ttl: %+v", err)
-	}
-
-	if err := reg.RegisterTtl(testCases[1].Key, now, testCases[1].Ttl); err != nil {
-		t.Fatalf("Experienced error when registering ttl: %+v", err)
-	}
-
-	if err := reg.RegisterTtl(testCases[1].Key, now, testCases[2].Ttl); err != nil {
-		t.Fatalf("Experienced error when registering ttl: %+v", err)
+	for _, ti := range testCases {
+		t.Run(ti.Key, func(t *testing.T) {
+			reg.table.Set(ti.Key, "Garbage")
+			if err := reg.RegisterTtl(ti.Key, now, ti.Ttl); err != nil {
+				t.Fatalf("Experiences error when registering ttl: %+v", err)
+			}
+			ti.Expire = now.Add(ti.Ttl)
+		})
 	}
 
 	// wait for the first one to expire
@@ -164,7 +159,7 @@ func TestExpiration(t *testing.T) {
 		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
 	}
 
-	if reg.queue[0].key == testCases[1].Key {
+	if reg.queue.Len() > 0 && reg.queue[0].key == testCases[1].Key {
 		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
 	}
 
