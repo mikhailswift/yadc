@@ -118,6 +118,7 @@ func (reg *ttlRegistry) UnregisterTTL(key string) error {
 	}
 
 	ti.expire = time.Time{}
+	delete(reg.ttlByKey, key)
 	return nil
 }
 

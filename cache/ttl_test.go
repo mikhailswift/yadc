@@ -169,3 +169,97 @@ func TestExpiration(t *testing.T) {
 	}
 
 }
+
+func TestGetTTL(t *testing.T) {
+	testCases := []struct {
+		Key string
+		TTL time.Duration
+	}{
+		{
+			Key: "Test",
+			TTL: 5 * time.Second,
+		}, {
+			Key: "Test2",
+			TTL: 6 * time.Second,
+		}, {
+			Key: "Test3",
+			TTL: 4 * time.Second,
+		},
+	}
+
+	reg := getTestRegistry()
+	now := time.Now().UTC()
+	for _, tc := range testCases {
+		t.Run(tc.Key, func(t *testing.T) {
+			if err := reg.RegisterTTL(tc.Key, now, tc.TTL); err != nil {
+				t.Fatalf("Couldn't set TTL for key %v: %+v", tc.Key, err)
+			}
+		})
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Key, func(t *testing.T) {
+			ttl, err := reg.GetTTL(tc.Key)
+			if err != nil {
+				t.Fatalf("Couldn't get TTL for key %v: %+v", tc.Key, err)
+			}
+
+			// some time may have dropped off the TTL since we added it (should be close to negligable)
+			if ttl > tc.TTL {
+				t.Fatalf("Got an unexpected TTL for key %v, got %s, expected %s", tc.Key, ttl, tc.TTL)
+			}
+		})
+	}
+
+	// Ensure we get an error when finding a TTL for a key that isn't registered
+	ttl, err := reg.GetTTL("Garbage Key")
+	if _, ok := err.(ErrTTLNotFound); err == nil || !ok {
+		t.Fatalf("Got an unexpected error when requesting a TTL for a key that shouldn't exist: TTL: %s Err: %+v", ttl, err)
+	}
+}
+
+func TestUnregisterTTL(t *testing.T) {
+	testCases := []struct {
+		Key string
+		TTL time.Duration
+	}{
+		{
+			Key: "Test",
+			TTL: 5 * time.Second,
+		}, {
+			Key: "Test2",
+			TTL: 6 * time.Second,
+		}, {
+			Key: "Test3",
+			TTL: 4 * time.Second,
+		},
+	}
+
+	reg := getTestRegistry()
+	now := time.Now().UTC()
+	for _, tc := range testCases {
+		t.Run(tc.Key, func(t *testing.T) {
+			if err := reg.RegisterTTL(tc.Key, now, tc.TTL); err != nil {
+				t.Fatalf("Couldn't register TTL for key %v: %+v", tc.Key, err)
+			}
+		})
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Key, func(t *testing.T) {
+			if err := reg.UnregisterTTL(tc.Key); err != nil {
+				t.Fatalf("Couldn't unregister TTL for key %v: %+v", tc.Key, err)
+			}
+		})
+	}
+
+	if len(reg.ttlByKey) != 0 {
+		t.Fatalf("Found unexpected TTLs in ttlByKey map: %s", reg.ttlByKey)
+	}
+
+	for _, ti := range reg.queue {
+		if !ti.expire.IsZero() {
+			t.Fatalf("Found TTLs with unexpected values in TTL registry queue: Key: %v; Expire: %s", ti.key, ti.expire)
+		}
+	}
+}
