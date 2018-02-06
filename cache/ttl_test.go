@@ -250,13 +250,20 @@ func TestUnregisterTTL(t *testing.T) {
 			if err := reg.UnregisterTTL(tc.Key); err != nil {
 				t.Fatalf("Couldn't unregister TTL for key %v: %+v", tc.Key, err)
 			}
+
+			ttl, err := reg.GetTTL(tc.Key)
+			if _, ok := err.(ErrTTLNotFound); err == nil || !ok {
+				t.Fatalf("Didn't get ErrTTLNotFound after unregistering TTL for key %v: TTL: %v, Err: %+v", tc.Key, ttl, err)
+			}
 		})
 	}
 
+	// ttlByKey should be empty after all ttls have been unregistered
 	if len(reg.ttlByKey) != 0 {
 		t.Fatalf("Found unexpected TTLs in ttlByKey map: %s", reg.ttlByKey)
 	}
 
+	// All ttls in the queue should be set to zero time after unregister
 	for _, ti := range reg.queue {
 		if !ti.expire.IsZero() {
 			t.Fatalf("Found TTLs with unexpected values in TTL registry queue: Key: %v; Expire: %s", ti.key, ti.expire)
