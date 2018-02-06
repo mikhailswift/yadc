@@ -3,7 +3,7 @@ SHELL := /bin/bash
 all: fmt lint vet test build
 
 build: 
-	@go build ./hashtable
+	@go build ./cache
 
 test:
 	@go test ./...
