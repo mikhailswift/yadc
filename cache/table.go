@@ -8,16 +8,16 @@ import (
 
 //HashTable is the interface that defines what a table needs to do to be used as a hash table in the Cacher interface
 type HashTable interface {
-	Set(key, value string) result
-	Unset(key string) result
-	Get(key string) result
+	Set(key, value string) Result
+	Unset(key string) Result
+	Get(key string) Result
 }
 
 //ErrKeyNotFound is returned when a requested key could not be found in the table
 type ErrKeyNotFound string
 
 func (e ErrKeyNotFound) Error() string {
-	return fmt.Sprintf("Could not find key: %+v", e)
+	return fmt.Sprintf("Could not find key: %v", string(e))
 }
 
 type mapHashTable struct {
@@ -31,7 +31,7 @@ func newTable() HashTable {
 	}
 }
 
-func (t *mapHashTable) Set(key, value string) result {
+func (t *mapHashTable) Set(key, value string) Result {
 	t.Lock()
 	defer t.Unlock()
 
@@ -39,52 +39,52 @@ func (t *mapHashTable) Set(key, value string) result {
 	if ok {
 		n.value = value
 		n.created = time.Now().UTC()
-		return result{
-			Node:   *n,
+		return Result{
+			n:      *n,
 			Action: Updated,
 		}
 	}
 
 	n = newRecord(key, value)
 	t.m[key] = n
-	return result{
-		Node:   *n,
+	return Result{
+		n:      *n,
 		Action: Created,
 	}
 }
 
-func (t *mapHashTable) Unset(key string) result {
+func (t *mapHashTable) Unset(key string) Result {
 	t.Lock()
 	defer t.Unlock()
 	n, exists := t.m[key]
 	if !exists {
-		return result{
+		return Result{
 			Action: Failed,
 			Err:    ErrKeyNotFound(key),
 		}
 	}
 
 	delete(t.m, key)
-	return result{
+	return Result{
 		Action: Deleted,
-		Node:   *n,
+		n:      *n,
 	}
 }
 
-func (t *mapHashTable) Get(key string) result {
+func (t *mapHashTable) Get(key string) Result {
 	t.Lock()
 	defer t.Unlock()
 
 	n, exists := t.m[key]
 	if !exists {
-		return result{
+		return Result{
 			Action: Failed,
 			Err:    ErrKeyNotFound(key),
 		}
 	}
 
-	return result{
+	return Result{
 		Action: Retrieved,
-		Node:   *n,
+		n:      *n,
 	}
 }

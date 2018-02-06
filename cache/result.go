@@ -1,5 +1,9 @@
 package cache
 
+import (
+	"time"
+)
+
 type action int
 
 const (
@@ -15,8 +19,20 @@ const (
 	Retrieved action = iota
 )
 
-type result struct {
+type Result struct {
 	Action action
-	Node   node
+	n      node
 	Err    error
+}
+
+func (r Result) GetValue() string {
+	return r.n.value
+}
+
+func (r Result) GetKey() string {
+	return r.n.key
+}
+
+func (r Result) GetCreatedTime() time.Time {
+	return r.n.created
 }

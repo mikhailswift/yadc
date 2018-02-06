@@ -12,14 +12,14 @@ import (
 type ErrInvalidTTL time.Duration
 
 func (e ErrInvalidTTL) Error() string {
-	return fmt.Sprintf("Couldn't use %s as a ttl", e)
+	return fmt.Sprintf("Couldn't use %s as a ttl", time.Duration(e))
 }
 
 //ErrTTLNotFound indicates the registry could not find a TTL for the provided key.
 type ErrTTLNotFound string
 
 func (e ErrTTLNotFound) Error() string {
-	return fmt.Sprintf("Couldn't find a ttl for key %v", e)
+	return fmt.Sprintf("Couldn't find a ttl for key %v", string(e))
 }
 
 type ttlInfo struct {
@@ -48,24 +48,25 @@ func newTTLRegistry(table HashTable) *ttlRegistry {
 }
 
 func (reg *ttlRegistry) RegisterTTL(key string, created time.Time, ttl time.Duration) error {
+	if ttl < 0 {
+		return ErrInvalidTTL(ttl)
+	}
+
 	reg.Lock()
 	defer reg.Unlock()
-
 	var ti *ttlInfo
 	var exists bool
 
 	if ti, exists = reg.ttlByKey[key]; !exists {
-		if ttl <= 0 {
-			return ErrInvalidTTL(ttl)
-		}
-
 		ti = &ttlInfo{
 			key:    key,
 			expire: created.Add(ttl).UTC(),
 		}
-	} else if exists && ttl <= 0 {
+	} else if exists && ttl == 0 {
 		// a value of zero or below will erase the ttl
 		ti.expire = time.Time{}
+	} else if exists {
+		ti.expire = created.Add(ttl).UTC()
 	}
 
 	// peek the next ttl, if it's after the one we're adding reset the timer to our newly added ttl

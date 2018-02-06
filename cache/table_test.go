@@ -31,8 +31,8 @@ func TestGetKey(t *testing.T) {
 		t.Fatalf("Failed to get key: %+v", r.Err)
 	}
 
-	if r.Node.value != expectedVal {
-		t.Fatalf("Got unexpected value back from table for key %v: got %v, expected %v", r.Node.key, r.Node.value, expectedVal)
+	if r.n.value != expectedVal {
+		t.Fatalf("Got unexpected value back from table for key %v: got %v, expected %v", r.n.key, r.n.value, expectedVal)
 	}
 
 	failKey := "Test 2"
