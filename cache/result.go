@@ -19,20 +19,24 @@ const (
 	Retrieved action = iota
 )
 
+//Result represents a result from the cache table.  Err will be nil when the action was successful and an action of Failed will always have a non-nill Err
 type Result struct {
 	Action action
 	n      node
 	Err    error
 }
 
+//GetValue gets the value of the Node from the cache
 func (r Result) GetValue() string {
 	return r.n.value
 }
 
+//GetKey gets the key of the Node from the cache
 func (r Result) GetKey() string {
 	return r.n.key
 }
 
+//GetCreatedTime gets the Created Time of the Node from the cache
 func (r Result) GetCreatedTime() time.Time {
 	return r.n.created
 }

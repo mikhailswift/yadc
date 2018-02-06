@@ -260,7 +260,7 @@ func TestUnregisterTTL(t *testing.T) {
 
 	// ttlByKey should be empty after all ttls have been unregistered
 	if len(reg.ttlByKey) != 0 {
-		t.Fatalf("Found unexpected TTLs in ttlByKey map: %s", reg.ttlByKey)
+		t.Fatalf("Found unexpected TTLs in ttlByKey map: %v", reg.ttlByKey)
 	}
 
 	// All ttls in the queue should be set to zero time after unregister

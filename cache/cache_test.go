@@ -22,7 +22,7 @@ func TestSet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Set(tc.Key, tc.Value, tc.TTL); r.Action != tc.ExpectedAction {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
@@ -44,7 +44,7 @@ func TestUnset(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Set(tc.Key, tc.Value, tc.TTL); r.Action != tc.ExpectedAction && r.Err != nil {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
@@ -52,14 +52,14 @@ func TestUnset(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Unset(tc.Key); r.Action != Deleted && r.Err != nil {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
 
 	r := c.Unset("Garbage Key")
 	if _, ok := r.Err.(ErrKeyNotFound); r.Action != Failed || !ok || r.Err == nil {
-		t.Fatalf("Expected to get an action of Failed and a ErrKeyNotFound when unsetting a garbage key but got %s", r)
+		t.Fatalf("Expected to get an action of Failed and a ErrKeyNotFound when unsetting a garbage key but got %v", r)
 	}
 }
 
@@ -79,7 +79,7 @@ func TestGet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Set(tc.Key, tc.Value, tc.TTL); r.Action != tc.ExpectedAction {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
@@ -88,7 +88,7 @@ func TestGet(t *testing.T) {
 		t.Run(tc.Key, func(t *testing.T) {
 			r := c.Get(tc.Key)
 			if r.Action != Retrieved || r.Err != nil {
-				t.Fatalf("Got an unexpected action or error when getting key %v: %s", tc.Key, r)
+				t.Fatalf("Got an unexpected action or error when getting key %v: %v", tc.Key, r)
 			}
 
 			if tc.Value != r.n.value {
@@ -114,7 +114,7 @@ func TestSetTTL(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Set(tc.Key, tc.Value, tc.TTL); r.Action != tc.ExpectedAction {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
@@ -123,19 +123,19 @@ func TestSetTTL(t *testing.T) {
 		t.Run(tc.Key, func(t *testing.T) {
 			r := c.SetTTL(tc.Key, tc.TTL+1*time.Second)
 			if r.Action != Updated || r.Err != nil {
-				t.Fatalf("Couldn't set TTL for key %v: %s", tc.Key, r)
+				t.Fatalf("Couldn't set TTL for key %v: %v", tc.Key, r)
 			}
 		})
 	}
 
 	r := c.SetTTL("Garbage Key", 5*time.Minute)
 	if _, ok := r.Err.(ErrKeyNotFound); r.Action != Failed || r.Err == nil || !ok {
-		t.Fatalf("Didn't get ErrKeyNotFound or Failed action when setting TTL for garbage key: %s", r)
+		t.Fatalf("Didn't get ErrKeyNotFound or Failed action when setting TTL for garbage key: %v", r)
 	}
 
 	r = c.SetTTL(testCases[0].Key, -5*time.Minute)
 	if _, ok := r.Err.(ErrInvalidTTL); r.Action != Failed || r.Err == nil || !ok {
-		t.Fatalf("didn't get ErrInvalidTTL when setting negative TTL: %s", r)
+		t.Fatalf("didn't get ErrInvalidTTL when setting negative TTL: %v", r)
 	}
 }
 
@@ -155,7 +155,7 @@ func TestCacheGetTTL(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
 			if r := c.Set(tc.Key, tc.Value, tc.TTL); r.Action != tc.ExpectedAction {
-				t.Fatalf("Got unexpected result back for key %v: %s", tc.Key, r)
+				t.Fatalf("Got unexpected result back for key %v: %v", tc.Key, r)
 			}
 		})
 	}
@@ -174,7 +174,7 @@ func TestCacheGetTTL(t *testing.T) {
 	newTTL := testCases[0].TTL + 1*time.Hour
 	r := c.SetTTL(testCases[0].Key, newTTL)
 	if r.Action != Updated || r.Err != nil {
-		t.Fatalf("Failed to update TTL for key %v: %s", testCases[0].Key, r)
+		t.Fatalf("Failed to update TTL for key %v: %v", testCases[0].Key, r)
 	}
 
 	ttl, err := c.GetTTL(testCases[0].Key)
