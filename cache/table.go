@@ -6,12 +6,14 @@ import (
 	"time"
 )
 
+//HashTable is the interface that defines what a table needs to do to be used as a hash table in the Cacher interface
 type HashTable interface {
 	Set(key, value string) result
 	Unset(key string) result
 	Get(key string) result
 }
 
+//ErrKeyNotFound is returned when a requested key could not be found in the table
 type ErrKeyNotFound string
 
 func (e ErrKeyNotFound) Error() string {

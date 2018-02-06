@@ -8,15 +8,17 @@ import (
 	"time"
 )
 
-type ErrInvalidTtl time.Duration
+//ErrInvalidTTL indicates the registry got a bad duration as a TTL
+type ErrInvalidTTL time.Duration
 
-func (e ErrInvalidTtl) Error() string {
+func (e ErrInvalidTTL) Error() string {
 	return fmt.Sprintf("Couldn't use %s as a ttl", e)
 }
 
-type ErrTtlNotFound string
+//ErrTTLNotFound indicates the registry could not find a TTL for the provided key.
+type ErrTTLNotFound string
 
-func (e ErrTtlNotFound) Error() string {
+func (e ErrTTLNotFound) Error() string {
 	return fmt.Sprintf("Couldn't find a ttl for key %v", e)
 }
 
@@ -30,11 +32,11 @@ type ttlRegistry struct {
 	ttlByKey      map[string]*ttlInfo
 	queue         ttlQueue
 	table         HashTable
-	nextTtlExpire *time.Timer
+	nextTTLExpire *time.Timer
 	sync.RWMutex
 }
 
-func newTtlRegistry(table HashTable) *ttlRegistry {
+func newTTLRegistry(table HashTable) *ttlRegistry {
 	reg := &ttlRegistry{
 		ttlByKey: make(map[string]*ttlInfo),
 		queue:    make(ttlQueue, 0),
@@ -45,7 +47,7 @@ func newTtlRegistry(table HashTable) *ttlRegistry {
 	return reg
 }
 
-func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Duration) error {
+func (reg *ttlRegistry) RegisterTTL(key string, created time.Time, ttl time.Duration) error {
 	reg.Lock()
 	defer reg.Unlock()
 
@@ -54,7 +56,7 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 
 	if ti, exists = reg.ttlByKey[key]; !exists {
 		if ttl <= 0 {
-			return ErrInvalidTtl(ttl)
+			return ErrInvalidTTL(ttl)
 		}
 
 		ti = &ttlInfo{
@@ -76,10 +78,10 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 		}
 
 		if next.expire.After(ti.expire) {
-			if reg.nextTtlExpire != nil {
-				reg.nextTtlExpire.Stop()
+			if reg.nextTTLExpire != nil {
+				reg.nextTTLExpire.Stop()
 			}
-			reg.nextTtlExpire = time.AfterFunc(ti.expire.Sub(time.Now().UTC()), reg.expireKeys)
+			reg.nextTTLExpire = time.AfterFunc(ti.expire.Sub(time.Now().UTC()), reg.expireKeys)
 		}
 
 		break
@@ -95,18 +97,18 @@ func (reg *ttlRegistry) RegisterTtl(key string, created time.Time, ttl time.Dura
 	return nil
 }
 
-func (reg *ttlRegistry) GetTtl(key string) (time.Duration, error) {
+func (reg *ttlRegistry) GetTTL(key string) (time.Duration, error) {
 	reg.RLock()
 	defer reg.RUnlock()
 	ti, ok := reg.ttlByKey[key]
 	if !ok {
-		return time.Duration(0), ErrTtlNotFound(key)
+		return time.Duration(0), ErrTTLNotFound(key)
 	}
 
 	return ti.expire.Sub(time.Now().UTC()), nil
 }
 
-func (reg *ttlRegistry) UnregisterTtl(key string) error {
+func (reg *ttlRegistry) UnregisterTTL(key string) error {
 	reg.Lock()
 	defer reg.Unlock()
 
@@ -135,16 +137,16 @@ func (reg *ttlRegistry) expireKeys() {
 		}
 
 		if next.expire.After(now) {
-			if reg.nextTtlExpire != nil {
-				reg.nextTtlExpire.Stop()
+			if reg.nextTTLExpire != nil {
+				reg.nextTTLExpire.Stop()
 			}
-			reg.nextTtlExpire = time.AfterFunc(next.expire.Sub(now), reg.expireKeys)
+			reg.nextTTLExpire = time.AfterFunc(next.expire.Sub(now), reg.expireKeys)
 			return
 		}
 
 		r := reg.table.Unset(next.key)
 		if _, ok := r.Err.(ErrKeyNotFound); r.Err != nil && !ok {
-			log.Printf("Couldn't unset key while expiring key %v: %+v", r.Err)
+			log.Printf("Couldn't unset key while expiring key %v: %+v", next.key, r.Err)
 		}
 
 		heap.Pop(&reg.queue)

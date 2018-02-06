@@ -8,34 +8,34 @@ import (
 
 func getTestRegistry() *ttlRegistry {
 	table := newTable()
-	return newTtlRegistry(table)
+	return newTTLRegistry(table)
 }
 
-func TestTtlRegistrationAndHeapTest(t *testing.T) {
+func TestTTLRegistrationAndHeapTest(t *testing.T) {
 	testCases := []struct {
 		Key string
-		Ttl time.Duration
+		TTL time.Duration
 	}{
 		{
 			Key: "Test",
-			Ttl: 5 * time.Second,
+			TTL: 5 * time.Second,
 		}, {
 			Key: "Test2",
-			Ttl: 6 * time.Second,
+			TTL: 6 * time.Second,
 		}, {
 			Key: "Test3",
-			Ttl: 4 * time.Second,
+			TTL: 4 * time.Second,
 		},
 	}
 
 	reg := getTestRegistry()
 	now := time.Now().UTC()
 
-	if err := reg.RegisterTtl(testCases[0].Key, now, testCases[0].Ttl); err != nil {
+	if err := reg.RegisterTTL(testCases[0].Key, now, testCases[0].TTL); err != nil {
 		t.Fatalf("Experienced error when registering ttl: %+v", err)
 	}
 
-	if err := reg.RegisterTtl(testCases[1].Key, now, testCases[1].Ttl); err != nil {
+	if err := reg.RegisterTTL(testCases[1].Key, now, testCases[1].TTL); err != nil {
 		t.Fatalf("Experienced error when registering ttl: %+v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestTtlRegistrationAndHeapTest(t *testing.T) {
 	}
 
 	// Add the third key with an earlier time to ensure queue gets adjusted
-	if err := reg.RegisterTtl(testCases[2].Key, now, testCases[2].Ttl); err != nil {
+	if err := reg.RegisterTTL(testCases[2].Key, now, testCases[2].TTL); err != nil {
 		t.Fatalf("Experienced error when registering ttl: %+v", err)
 	}
 
@@ -91,18 +91,18 @@ func TestTtlRegistrationAndHeapTest(t *testing.T) {
 func TestExpiration(t *testing.T) {
 	testCases := []*struct {
 		Key    string
-		Ttl    time.Duration
+		TTL    time.Duration
 		Expire time.Time
 	}{
 		{
 			Key: "Test",
-			Ttl: 1 * time.Second,
+			TTL: 1 * time.Second,
 		}, {
 			Key: "Test2",
-			Ttl: 2 * time.Second,
+			TTL: 2 * time.Second,
 		}, {
 			Key: "Test3",
-			Ttl: 500 * time.Millisecond,
+			TTL: 500 * time.Millisecond,
 		},
 	}
 
@@ -112,15 +112,15 @@ func TestExpiration(t *testing.T) {
 	for _, ti := range testCases {
 		t.Run(ti.Key, func(t *testing.T) {
 			reg.table.Set(ti.Key, "Garbage")
-			if err := reg.RegisterTtl(ti.Key, now, ti.Ttl); err != nil {
+			if err := reg.RegisterTTL(ti.Key, now, ti.TTL); err != nil {
 				t.Fatalf("Experiences error when registering ttl: %+v", err)
 			}
-			ti.Expire = now.Add(ti.Ttl)
+			ti.Expire = now.Add(ti.TTL)
 		})
 	}
 
 	// wait for the first one to expire
-	time.Sleep(testCases[2].Ttl + 250*time.Millisecond)
+	time.Sleep(testCases[2].TTL + 250*time.Millisecond)
 
 	ti, ok := reg.ttlByKey[testCases[2].Key]
 	if ok {
