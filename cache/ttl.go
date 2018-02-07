@@ -119,6 +119,7 @@ func (reg *ttlRegistry) UnregisterTTL(key string) error {
 	}
 
 	ti.expire = time.Time{}
+	heap.Remove(&reg.queue, ti.ix)
 	delete(reg.ttlByKey, key)
 	return nil
 }

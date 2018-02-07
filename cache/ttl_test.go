@@ -91,18 +91,26 @@ func TestTTLRegistrationAndHeapTest(t *testing.T) {
 func TestExpiration(t *testing.T) {
 	testCases := []*struct {
 		Key    string
+		Value  string
 		TTL    time.Duration
 		Expire time.Time
 	}{
 		{
-			Key: "Test",
-			TTL: 1 * time.Second,
+			Key:   "Test",
+			Value: "Garbage",
+			TTL:   1 * time.Second,
 		}, {
-			Key: "Test2",
-			TTL: 2 * time.Second,
+			Key:   "Test2",
+			Value: "Garbage",
+			TTL:   2 * time.Second,
 		}, {
-			Key: "Test3",
-			TTL: 500 * time.Millisecond,
+			Key:   "Test3",
+			Value: "Garbage",
+			TTL:   500 * time.Millisecond,
+		}, {
+			Key:   "Unexpired Test",
+			Value: "Garbage",
+			TTL:   1 * time.Minute,
 		},
 	}
 
@@ -136,7 +144,27 @@ func TestExpiration(t *testing.T) {
 		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[2].Key, r)
 	}
 
+	// Expire test case 4
+	if err := reg.UnregisterTTL(testCases[3].Key); err != nil {
+		t.Fatalf("Couldn't unregister key %v: %+v", testCases[3].Key, err)
+	}
+
+	ti, ok = reg.ttlByKey[testCases[3].Key]
+	if ok {
+		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
+	}
+
+	for _, ti := range reg.queue {
+		if ti.key == testCases[3].Key {
+			t.Fatalf("Found unregistered key in ttl queue: %+v", ti.key)
+		}
+	}
+
 	time.Sleep(1 * time.Second)
+
+	if r := reg.table.Get(testCases[3].Key); r.Action != Retrieved || r.GetValue() != testCases[3].Value {
+		t.Fatalf("Couldn't retrieve value from table for key who had TTL unregistered: %v", r)
+	}
 
 	ti, ok = reg.ttlByKey[testCases[0].Key]
 	if ok {
@@ -144,7 +172,7 @@ func TestExpiration(t *testing.T) {
 	}
 
 	if reg.queue[0].key == testCases[0].Key {
-		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
+		t.Fatalf("Found ttl info in queue for key that should have been expired: %v", ti.key)
 	}
 
 	r = reg.table.Get(testCases[0].Key)
@@ -167,7 +195,6 @@ func TestExpiration(t *testing.T) {
 	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
 		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[1].Key, r)
 	}
-
 }
 
 func TestGetTTL(t *testing.T) {
