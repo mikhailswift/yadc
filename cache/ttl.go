@@ -115,6 +115,19 @@ func (reg *ttlRegistry) UnregisterTTL(key string) error {
 	return nil
 }
 
+func (reg *ttlRegistry) Reset() {
+	reg.Lock()
+	defer reg.Unlock()
+	if reg.nextTTLExpire != nil {
+		reg.nextTTLExpire.Stop()
+		reg.nextTTLExpire = nil
+	}
+
+	reg.ttlByKey = make(map[string]*ttlInfo)
+	reg.queue = make(ttlQueue, 0)
+	heap.Init(&reg.queue)
+}
+
 func (reg *ttlRegistry) expireKeys() {
 	reg.Lock()
 	defer reg.Unlock()

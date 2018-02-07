@@ -4,10 +4,10 @@ all: fmt lint vet test build
 
 build: 
 	@go build ./cache
+	@go build ./commands
 
 test:
-	@go test -race -coverprofile=coverage.txt -covermode=atomic ./...
-
+	@./tests.sh
 fmt:
 	@gofmt -d -s ./
 

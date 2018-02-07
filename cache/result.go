@@ -17,11 +17,16 @@ const (
 	Deleted action = iota
 	//Retrieved indicates the attempted action returning a value
 	Retrieved action = iota
+	//RetrievedTTL indicated the attempted action is returning a TTL
+	RetrievedTTL action = iota
+	//Cleared indicates the attempted action cleared the cache
+	Cleared action = iota
 )
 
 //Result represents a result from the cache table.  Err will be nil when the action was successful and an action of Failed will always have a non-nill Err
 type Result struct {
 	Action action
+	ttl    time.Duration
 	n      node
 	Err    error
 }
@@ -39,4 +44,9 @@ func (r Result) GetKey() string {
 //GetCreatedTime gets the Created Time of the Node from the cache
 func (r Result) GetCreatedTime() time.Time {
 	return r.n.created
+}
+
+//GetTTL gets the current TTL.  Only valid for GetTTL calls
+func (r Result) GetTTL() time.Duration {
+	return r.ttl
 }
