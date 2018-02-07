@@ -48,7 +48,7 @@ func newTTLRegistry(table HashTable) *ttlRegistry {
 }
 
 func (reg *ttlRegistry) RegisterTTL(key string, created time.Time, ttl time.Duration) error {
-	if ttl < 0 {
+	if ttl <= 0 {
 		return ErrInvalidTTL(ttl)
 	}
 
@@ -62,9 +62,6 @@ func (reg *ttlRegistry) RegisterTTL(key string, created time.Time, ttl time.Dura
 			key:    key,
 			expire: created.Add(ttl).UTC(),
 		}
-	} else if exists && ttl == 0 {
-		// a value of zero or below will erase the ttl
-		ti.expire = time.Time{}
 	} else if exists {
 		ti.expire = created.Add(ttl).UTC()
 	}
@@ -72,12 +69,6 @@ func (reg *ttlRegistry) RegisterTTL(key string, created time.Time, ttl time.Dura
 	// peek the next ttl, if it's after the one we're adding reset the timer to our newly added ttl
 	for reg.queue.Len() > 0 {
 		next := reg.queue[0]
-		// pop any ttls that are no longer valid
-		if next.expire.IsZero() {
-			heap.Pop(&reg.queue)
-			continue
-		}
-
 		if next.expire.After(ti.expire) {
 			if reg.nextTTLExpire != nil {
 				reg.nextTTLExpire.Stop()
