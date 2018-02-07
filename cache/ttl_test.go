@@ -143,7 +143,7 @@ func TestExpiration(t *testing.T) {
 		})
 	}
 
-	for _ = range time.Tick(750 * time.Millisecond) {
+	for range time.Tick(750 * time.Millisecond) {
 		finished := true
 		now := time.Now().UTC()
 		for _, tc := range testCases {

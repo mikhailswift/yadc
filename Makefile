@@ -9,7 +9,7 @@ test:
 	@go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 fmt:
-	@gofmt -d ./
+	@gofmt -d -s ./
 
 lint:
 	@golint -set_exit_status $$(go list ./...)
