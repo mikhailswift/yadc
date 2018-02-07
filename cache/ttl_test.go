@@ -213,8 +213,8 @@ func TestGetTTL(t *testing.T) {
 				t.Fatalf("Couldn't get TTL for key %v: %+v", tc.Key, err)
 			}
 
-			// some time may have dropped off the TTL since we added it (should be close to negligable)
-			if ttl > tc.TTL {
+			// some time may have dropped off the TTL since we added it (should be close to negligible)
+			if ttl > tc.TTL || ttl < (tc.TTL-marginOfError) {
 				t.Fatalf("Got an unexpected TTL for key %v, got %s, expected %s", tc.Key, ttl, tc.TTL)
 			}
 		})
