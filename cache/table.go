@@ -11,6 +11,7 @@ type HashTable interface {
 	Set(key, value string) Result
 	Unset(key string) Result
 	Get(key string) Result
+	Clear()
 }
 
 //ErrKeyNotFound is returned when a requested key could not be found in the table
@@ -87,4 +88,10 @@ func (t *mapHashTable) Get(key string) Result {
 		Action: Retrieved,
 		n:      *n,
 	}
+}
+
+func (t *mapHashTable) Clear() {
+	t.Lock()
+	defer t.Unlock()
+	t.m = make(map[string]*node)
 }

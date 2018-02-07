@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"sync"
 	"time"
 )
 
@@ -10,12 +11,14 @@ type Cacher interface {
 	Unset(key string) Result
 	Get(key string) Result
 	SetTTL(key string, ttl time.Duration) Result
-	GetTTL(key string) (time.Duration, error)
+	GetTTL(key string) Result
+	UnsetAll() Result
 }
 
 type memCache struct {
 	table       HashTable
 	ttlRegistry *ttlRegistry
+	sync.RWMutex
 }
 
 // NewCache returns a newly instantiated Cache that's ready to use
@@ -30,6 +33,8 @@ func NewCache() Cacher {
 
 //Set will attempt to set a key and value with a specified TTL.  If TTL is less than or equal to zero it will not set the TTL.
 func (c *memCache) Set(key, value string, ttl time.Duration) Result {
+	c.Lock()
+	defer c.Unlock()
 	r := c.table.Set(key, value)
 	if r.Err != nil {
 		return r
@@ -51,6 +56,8 @@ func (c *memCache) Set(key, value string, ttl time.Duration) Result {
 
 //Unset will unset the provided key from the cache.
 func (c *memCache) Unset(key string) Result {
+	c.Lock()
+	defer c.Unlock()
 	r := c.table.Unset(key)
 	if r.Err != nil {
 		return r
@@ -69,11 +76,15 @@ func (c *memCache) Unset(key string) Result {
 
 //Get will attempt to retrieve a specified key from the cache.
 func (c *memCache) Get(key string) Result {
+	c.RLock()
+	defer c.RUnlock()
 	return c.table.Get(key)
 }
 
 //SetTTL will set the TTL for a provided key.
 func (c *memCache) SetTTL(key string, ttl time.Duration) Result {
+	c.Lock()
+	defer c.Unlock()
 	r := c.table.Get(key)
 	if r.Err != nil {
 		return r
@@ -94,6 +105,30 @@ func (c *memCache) SetTTL(key string, ttl time.Duration) Result {
 }
 
 //GetTTL will return the TTL for a provided key.
-func (c *memCache) GetTTL(key string) (time.Duration, error) {
-	return c.ttlRegistry.GetTTL(key)
+func (c *memCache) GetTTL(key string) Result {
+	c.RLock()
+	defer c.RUnlock()
+	ttl, err := c.ttlRegistry.GetTTL(key)
+	if err != nil {
+		return Result{
+			Action: Failed,
+			Err:    err,
+		}
+	}
+
+	return Result{
+		Action: RetrievedTTL,
+		ttl:    ttl,
+	}
+}
+
+//UnsetAll will unset all keys in the cache
+func (c *memCache) UnsetAll() Result {
+	c.Lock()
+	defer c.Unlock()
+	c.table.Clear()
+	c.ttlRegistry.Reset()
+	return Result{
+		Action: Cleared,
+	}
 }

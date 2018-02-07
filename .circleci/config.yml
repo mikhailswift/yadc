@@ -4,16 +4,24 @@ jobs:
   build:
     docker:
       - image: scoodah/yadc:build
+    working_directory: /go/src/github.com/mikhailswift/yadc
     steps:
       - checkout
+      - run:
+          name: Dependencies
+          command: make dep
       - run:
           name: Build
           command: make build
   test:
     docker:
       - image: scoodah/yadc:build
+    working_directory: /go/src/github.com/mikhailswift/yadc
     steps:
       - checkout
+      - run:
+          name: Dependencies
+          command: make dep
       - run:
           name: Test
           command: |
@@ -22,6 +30,7 @@ jobs:
   code_quality:
     docker:
       - image: scoodah/yadc:build
+    working_directory: /go/src/github.com/mikhailswift/yadc
     steps:
       - checkout
       - run:

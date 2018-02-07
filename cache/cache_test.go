@@ -166,7 +166,9 @@ func TestCacheGetTTL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Key, func(t *testing.T) {
-			ttl, err := c.GetTTL(tc.Key)
+			r := c.GetTTL(tc.Key)
+			err := r.Err
+			ttl := r.GetTTL()
 			if _, ok := err.(ErrTTLNotFound); tc.TTL == 0*time.Second && (err == nil || !ok) {
 				t.Fatalf("Didn't get ErrTTLNotFound for key %v which had 0 TTL: Err: %+v, TTL: %s", tc.Key, err, ttl)
 			} else if tc.TTL > 0*time.Second && (err != nil || ttl < tc.TTL-marginOfError) {
@@ -181,8 +183,8 @@ func TestCacheGetTTL(t *testing.T) {
 		t.Fatalf("Failed to update TTL for key %v: %v", testCases[0].Key, r)
 	}
 
-	ttl, err := c.GetTTL(testCases[0].Key)
-	if err != nil || ttl < newTTL-marginOfError {
-		t.Fatalf("Got unexpected err or ttl for key %v: Err: %+v TTL: %s", testCases[0].Key, err, ttl)
+	r = c.GetTTL(testCases[0].Key)
+	if r.Err != nil || r.GetTTL() < newTTL-marginOfError {
+		t.Fatalf("Got unexpected err or ttl for key %v: Err: %+v TTL: %s", testCases[0].Key, r.Err, r.GetTTL())
 	}
 }
