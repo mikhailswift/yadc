@@ -16,7 +16,9 @@ jobs:
       - checkout
       - run:
           name: Test
-          command: make test
+          command: |
+            make test
+            bash <(curl -s https://codecov.io/bash)
   code_quality:
     docker:
       - image: scoodah/yadc:build

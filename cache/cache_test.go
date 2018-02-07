@@ -165,7 +165,7 @@ func TestCacheGetTTL(t *testing.T) {
 			ttl, err := c.GetTTL(tc.Key)
 			if _, ok := err.(ErrTTLNotFound); tc.TTL == 0*time.Second && (err == nil || !ok) {
 				t.Fatalf("Didn't get ErrTTLNotFound for key %v which had 0 TTL: Err: %+v, TTL: %s", tc.Key, err, ttl)
-			} else if tc.TTL > 0*time.Second && (err != nil || ttl < tc.TTL-500*time.Microsecond) {
+			} else if tc.TTL > 0*time.Second && (err != nil || ttl < tc.TTL-1000*time.Microsecond) {
 				t.Fatalf("Got unexpected err or ttl for key %v: Err: %+v TTL: %s", tc.Key, err, ttl)
 			}
 		})
@@ -178,7 +178,7 @@ func TestCacheGetTTL(t *testing.T) {
 	}
 
 	ttl, err := c.GetTTL(testCases[0].Key)
-	if err != nil || ttl < newTTL-500*time.Microsecond {
+	if err != nil || ttl < newTTL-1000*time.Microsecond {
 		t.Fatalf("Got unexpected err or ttl for key %v: Err: %+v TTL: %s", testCases[0].Key, err, ttl)
 	}
 }

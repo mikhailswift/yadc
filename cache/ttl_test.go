@@ -90,110 +90,92 @@ func TestTTLRegistrationAndHeapTest(t *testing.T) {
 
 func TestExpiration(t *testing.T) {
 	testCases := []*struct {
-		Key    string
-		Value  string
-		TTL    time.Duration
-		Expire time.Time
+		Key         string
+		Value       string
+		TTL         time.Duration
+		Expire      time.Time
+		Expired     bool
+		NeverExpire bool
 	}{
 		{
-			Key:   "Test",
-			Value: "Garbage",
-			TTL:   1 * time.Second,
+			Key:         "Test",
+			Value:       "Garbage",
+			TTL:         1 * time.Second,
+			Expired:     false,
+			NeverExpire: false,
 		}, {
-			Key:   "Test2",
-			Value: "Garbage",
-			TTL:   2 * time.Second,
+			Key:         "Test2",
+			Value:       "Garbage",
+			TTL:         2 * time.Second,
+			Expired:     false,
+			NeverExpire: false,
 		}, {
-			Key:   "Test3",
-			Value: "Garbage",
-			TTL:   500 * time.Millisecond,
+			Key:         "Test3",
+			Value:       "Garbage",
+			TTL:         500 * time.Millisecond,
+			Expired:     false,
+			NeverExpire: false,
 		}, {
-			Key:   "Unexpired Test",
-			Value: "Garbage",
-			TTL:   1 * time.Minute,
+			Key:         "Unexpired Test",
+			Value:       "Garbage",
+			TTL:         1 * time.Minute,
+			Expired:     false,
+			NeverExpire: true,
 		},
 	}
 
 	reg := getTestRegistry()
 	now := time.Now().UTC()
 
-	for _, ti := range testCases {
-		t.Run(ti.Key, func(t *testing.T) {
-			reg.table.Set(ti.Key, "Garbage")
-			if err := reg.RegisterTTL(ti.Key, now, ti.TTL); err != nil {
+	for _, tc := range testCases {
+		t.Run(tc.Key, func(t *testing.T) {
+			reg.table.Set(tc.Key, "Garbage")
+			if err := reg.RegisterTTL(tc.Key, now, tc.TTL); err != nil {
 				t.Fatalf("Experiences error when registering ttl: %+v", err)
 			}
-			ti.Expire = now.Add(ti.TTL)
+			tc.Expire = now.Add(tc.TTL)
+
+			if tc.NeverExpire {
+				if err := reg.UnregisterTTL(tc.Key); err != nil {
+					t.Fatalf("Failed to unregister key that shouldn't expire: Key: %v Err: %+v", tc.Key, err)
+				}
+			}
 		})
 	}
 
-	// wait for the first one to expire
-	time.Sleep(testCases[2].TTL + 250*time.Millisecond)
+	for _ = range time.Tick(750 * time.Millisecond) {
+		finished := true
+		now := time.Now().UTC()
+		for _, tc := range testCases {
+			reg.RLock()
+			r := reg.table.Get(tc.Key)
+			_, isKeyNotFoundErr := r.Err.(ErrKeyNotFound)
+			ti, tiExists := reg.ttlByKey[tc.Key]
 
-	ti, ok := reg.ttlByKey[testCases[2].Key]
-	if ok {
-		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
-	}
+			// if this key shouldn't expire it shouldn't be in the ttlByKey since it'd have been unregistered
+			if tc.NeverExpire && (tiExists || r.Action != Retrieved || r.GetValue() != tc.Value || r.GetKey() != tc.Key) {
+				t.Fatalf("Key that shouldn't have expired had something bad happen: Key: %v ; Result: %v ; ttl info: %v", tc.Key, r, ti)
+			}
 
-	if reg.queue[0].key == testCases[2].Key {
-		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
-	}
+			// if this key has expired in the last iteration mark it as such
+			if tc.Expire.Before(now) {
+				tc.Expired = true
+			}
 
-	r := reg.table.Get(testCases[2].Key)
-	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
-		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[2].Key, r)
-	}
+			if tc.Expired && (r.Action != Failed || !isKeyNotFoundErr || r.Err == nil || tiExists) {
+				t.Fatalf("Key that should have expired was still found: Key %v ; Result: %v; ttl info: %v", tc.Key, r, ti)
+			}
 
-	// Expire test case 4
-	if err := reg.UnregisterTTL(testCases[3].Key); err != nil {
-		t.Fatalf("Couldn't unregister key %v: %+v", testCases[3].Key, err)
-	}
-
-	ti, ok = reg.ttlByKey[testCases[3].Key]
-	if ok {
-		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
-	}
-
-	for _, ti := range reg.queue {
-		if ti.key == testCases[3].Key {
-			t.Fatalf("Found unregistered key in ttl queue: %+v", ti.key)
+			// if we still have a case that hasn't expired yet set finished to false
+			if !tc.NeverExpire && !tc.Expired {
+				finished = false
+			}
+			reg.RUnlock()
 		}
-	}
 
-	time.Sleep(1 * time.Second)
-
-	if r := reg.table.Get(testCases[3].Key); r.Action != Retrieved || r.GetValue() != testCases[3].Value {
-		t.Fatalf("Couldn't retrieve value from table for key who had TTL unregistered: %v", r)
-	}
-
-	ti, ok = reg.ttlByKey[testCases[0].Key]
-	if ok {
-		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
-	}
-
-	if reg.queue[0].key == testCases[0].Key {
-		t.Fatalf("Found ttl info in queue for key that should have been expired: %v", ti.key)
-	}
-
-	r = reg.table.Get(testCases[0].Key)
-	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
-		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[0].Key, r)
-	}
-
-	time.Sleep(1 * time.Second)
-
-	ti, ok = reg.ttlByKey[testCases[1].Key]
-	if ok {
-		t.Fatalf("Found ttl info for key that should have been expired: %v", ti.key)
-	}
-
-	if reg.queue.Len() > 0 && reg.queue[0].key == testCases[1].Key {
-		t.Fatalf("Found ttl infor in queue for key that should have been expired: %v", ti.key)
-	}
-
-	r = reg.table.Get(testCases[1].Key)
-	if _, ok := r.Err.(ErrKeyNotFound); r.Err == nil || !ok {
-		t.Fatalf("Expected to not find key in table for key that should have expired: Key: %v; Err: %+v", testCases[1].Key, r)
+		if finished {
+			break
+		}
 	}
 }
 
