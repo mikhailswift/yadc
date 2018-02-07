@@ -123,13 +123,6 @@ func (reg *ttlRegistry) expireKeys() {
 	for reg.queue.Len() > 0 {
 		// peek the next to make sure we should expire
 		next := reg.queue[0]
-
-		// disregard ttls with zero time
-		if next.expire.IsZero() {
-			heap.Pop(&reg.queue)
-			continue
-		}
-
 		if next.expire.After(now) {
 			if reg.nextTTLExpire != nil {
 				reg.nextTTLExpire.Stop()
